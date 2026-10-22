@@ -15,4 +15,16 @@ using var shutdown = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; shutdown.Cancel(); };
 using var term = OperatingSystem.IsWindows() ? null : System.Runtime.InteropServices.PosixSignalRegistration.Create(
     System.Runtime.InteropServices.PosixSignal.SIGTERM, context => { context.Cancel = true; shutdown.Cancel(); });
-await new Receiver(settings).RunAsync(shutdown.Token);
+var metricsPort = Number("GPS_METRICS_PORT", 9091, 1, 65535);
+if (metricsPort == settings.Port) throw new ArgumentException("GPS and metrics ports must differ");
+var metrics = new ReceiverMetrics();
+await using var http = MetricsServer.Create(metrics, $"http://0.0.0.0:{metricsPort}");
+await http.StartAsync(shutdown.Token);
+Console.WriteLine($"Metrics HTTP listening on port {metricsPort} at /metrics");
+try { await new Receiver(settings, metrics).RunAsync(shutdown.Token); }
+finally
+{
+    shutdown.Cancel();
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+    await http.StopAsync(deadline.Token);
+}

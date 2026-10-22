@@ -3,3 +3,6 @@ obj/
 captures/
 .env
 *.user
+__pycache__/
+*.pyc
+.secrets/

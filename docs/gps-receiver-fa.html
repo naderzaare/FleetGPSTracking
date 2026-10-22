@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>راه‌اندازی گیرنده GPS و تست با شبیه‌ساز</title>
+<style>
+body{margin:0;background:#f3f5f8;color:#182433;font:17px/1.95 Tahoma,"Segoe UI",sans-serif;direction:rtl;text-align:right}
+main{max-width:920px;margin:32px auto;padding:30px;background:white;border-radius:14px}
+h1{font-size:27px;margin-top:0}h2{font-size:22px;margin-top:32px;border-bottom:1px solid #dde4ed;padding-bottom:8px}
+p{margin:12px 0}pre{direction:ltr;unicode-bidi:isolate;text-align:left;white-space:pre;overflow:auto;background:#152236;color:#edf4ff;padding:18px;border-radius:9px;font:15px/1.75 Consolas,monospace}
+code,bdi{direction:ltr;unicode-bidi:isolate}code{font-family:Consolas,monospace}table{border-collapse:collapse;width:100%;margin:15px 0}th,td{border:1px solid #dce2eb;padding:9px 12px;text-align:right}th{background:#eef3f9}.note{background:#eef6ff;padding:12px 16px;border-right:4px solid #3d79bd;border-radius:6px}li{margin:6px 0}
+@media(max-width:650px){main{margin:0;padding:20px;border-radius:0}body{font-size:16px}}
+@media print{body{background:white}main{margin:0;padding:0}pre{background:#f1f3f5;color:black;white-space:pre-wrap;overflow-wrap:anywhere}h2,pre{break-inside:avoid}}
+</style>
+</head>
+<body><main>
+<h1>راه‌اندازی گیرنده GPS و تست با شبیه‌ساز</h1>
+<p>این راهنما فقط سه کار را انجام می‌دهد: ارسال سورس از ویندوز به گیت‌هاب، ساخت و اجرای گیرنده روی اوبونتو، و تست دریافت با فرم شبیه‌ساز ویندوز.</p>
+<p class="note">برای وضعیت فعلی شما: پروژه روی ویندوز و اوبونتو وجود دارد؛ Docker و Compose روی اوبونتو نصب هستند. پایتون فقط روی ویندوز لازم است. همه دستورهای اوبونتو را در پوشه پروژه اجرا کنید، نه پوشه ذخیره داده.</p>
+
+<h2>۱. ارسال تغییرات به گیت‌هاب — روی ویندوز</h2>
+<p>در PowerShell وارد پوشه اصلی شوید و شاخه و تغییرات را بررسی کنید:</p>
+<pre><code>cd C:\Projects\FleetGPSTracking\FleetGPSTracking
+git switch codex/gps-receiver
+git status --short
+git diff</code></pre>
+<p>فایل‌های گیرنده، شبیه‌ساز و همین راهنما را برای ثبت انتخاب کنید:</p>
+<pre><code>git add .gitignore .dockerignore src/GpsReceiver tools/GpsSimulator deploy/compose.yaml docs/gps-receiver-fa.html docs/gps-receiver-fa.md docs/gps-receiver-update-fa.md
+git add -u
+git diff --cached --stat</code></pre>
+<p>فهرست تغییرات انتخاب‌شده را بررسی کنید که فایل دریافت‌شده یا رمز در آن نباشد. سپس ثبت و ارسال کنید:</p>
+<pre><code>git commit -m "Update GPS Receiver service and deployment guide"
+git push origin codex/gps-receiver</code></pre>
+<p>فقط پس از موفقیت ارسال، مرحله بعد را انجام دهید. این مرحله سورس را ارسال می‌کند؛ ایمیج روی اوبونتو ساخته می‌شود.</p>
+
+<h2>۲. دریافت نسخه جدید — روی اوبونتو</h2>
+<p>ابتدا ارسال فرم شبیه‌ساز را متوقف کنید. در ترمینال اوبونتو:</p>
+<pre><code>cd ~/projects/FleetGPSTracking
+git status --short</code></pre>
+<p>اگر تغییر ثبت‌نشده‌ای دارید، قبل از ادامه آن را بررسی و حفظ کنید. در پوشه بدون تغییر محلی:</p>
+<pre><code>git switch codex/gps-receiver
+git pull --ff-only origin codex/gps-receiver</code></pre>
+
+<h2>۳. آماده‌کردن پوشه داده — روی اوبونتو</h2>
+<p>فایل‌های دریافتی در این پوشه میزبان ذخیره می‌شوند و با تعویض کانتینر باقی می‌مانند:</p>
+<pre><code>sudo mkdir -p /srv/fleet-gps/captures
+sudo chown 1654:1654 /srv/fleet-gps/captures
+sudo chmod 0700 /srv/fleet-gps/captures</code></pre>
+
+<h2>۴. ساخت ایمیج؛ سپس اجرای کانتینر — روی اوبونتو</h2>
+<p>ابتدا فقط ایمیج را بسازید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml build gps-receiver</code></pre>
+<p>پس از موفقیت ساخت، کانتینر را از همان ایمیج بالا بیاورید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml up -d --no-build gps-receiver</code></pre>
+<p>وضعیت و پیام‌های سرویس را ببینید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml ps
+sudo docker compose -f deploy/compose.yaml logs --tail=30 gps-receiver</code></pre>
+<p>کانتینر باید وضعیت <bdi>Up</bdi> داشته باشد و این پیام در لاگ دیده شود:</p>
+<pre><code>GPS Receiver listening TCP 5027</code></pre>
+
+<h2>۵. انتقال پورت VirtualBox برای تست از ویندوز</h2>
+<p>چون اوبونتو در VirtualBox با شبکه NAT است، در تنظیمات شبکه ماشین مجازی، بخش <bdi>Port Forwarding</bdi> این قانون را داشته باشید. اگر قبلاً ساخته‌اید، قانون تکراری نسازید:</p>
+<table><thead><tr><th>گزینه</th><th>مقدار</th></tr></thead><tbody>
+<tr><td>نام</td><td><bdi>GPS</bdi></td></tr>
+<tr><td>پروتکل</td><td><bdi>TCP</bdi></td></tr>
+<tr><td>آدرس میزبان</td><td><bdi>127.0.0.1</bdi></td></tr>
+<tr><td>پورت میزبان</td><td><bdi>5027</bdi></td></tr>
+<tr><td>آدرس مهمان</td><td>برای DHCP خود VirtualBox خالی؛ برای آدرس ثابت، آدرس اوبونتو</td></tr>
+<tr><td>پورت مهمان</td><td><bdi>5027</bdi></td></tr>
+</tbody></table>
+
+<h2>۶. تست فقط با فرم شبیه‌ساز — روی ویندوز</h2>
+<p>در PowerShell:</p>
+<pre><code>cd C:\Projects\FleetGPSTracking\FleetGPSTracking
+py -3 tools/GpsSimulator/gui.py</code></pre>
+<p>در فرم این مقدارها را بگذارید:</p>
+<table><thead><tr><th>گزینه</th><th>مقدار اولیه</th></tr></thead><tbody>
+<tr><td>آدرس سرور</td><td><bdi>127.0.0.1</bdi></td></tr>
+<tr><td>پورت</td><td><bdi>5027</bdi></td></tr>
+<tr><td>تعداد دستگاه</td><td>۱</td></tr>
+<tr><td>فاصله ارسال</td><td>۵ ثانیه</td></tr>
+</tbody></table>
+<p>«شروع» را بزنید. تعداد اتصال باید به ۱ برسد و شمارنده رکوردهای تأییدشده افزایش پیدا کند. تعداد دستگاه یا فاصله ارسال را می‌توانید عوض کنید و «اعمال تغییرات» را بزنید. برای پایان، «توقف» را بزنید.</p>
+<p>برای این تست، تنظیم فهرست دستگاه‌های مجاز در حالت خالی پیش‌فرض بماند تا شناسه ساختگی شبیه‌ساز پذیرفته شود.</p>
+
+<h2>۷. تأیید دریافت و ذخیره — روی اوبونتو</h2>
+<pre><code>cd ~/projects/FleetGPSTracking
+sudo docker compose -f deploy/compose.yaml logs --tail=20 gps-receiver
+sudo ls -lh /srv/fleet-gps/captures
+sudo sh -c 'tail -n 3 /srv/fleet-gps/captures/*.txt'</code></pre>
+<p>در لاگ عبارت <bdi>accepted</bdi> و <bdi>records=1</bdi> و در پوشه، فایل متنی <bdi>.txt</bdi> انتظار می‌رود. داده شبیه‌ساز عمداً موقعیت GPS معتبر ندارد؛ این موضوع به‌تنهایی خطای دریافت نیست.</p>
+<p class="note">تست موفق یعنی فرم ویندوز اتصال دارد، شمارنده تأیید بالا می‌رود، لاگ اوبونتو دریافت را نشان می‌دهد و فایل متنی روی اوبونتو ذخیره می‌شود.</p>
+</main></body></html>

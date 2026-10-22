@@ -10,11 +10,14 @@ services:
     ports:
       - "5027:5027/tcp"
     environment:
+      GPS_METRICS_PORT: "9091"
       GPS_CAPTURE_DIR: /data/captures
       GPS_IDLE_SECONDS: "180"
       GPS_MAX_CONNECTIONS: "100"
       GPS_MAX_FRAME_BYTES: "65536"
       GPS_ALLOWED_IMEIS: ${GPS_ALLOWED_IMEIS:-}
+    expose:
+      - "9091"
     volumes:
       - /srv/fleet-gps/captures:/data/captures
     read_only: true
