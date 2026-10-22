@@ -1,0 +1,570 @@
+{
+  "uid": "gps-receiver",
+  "title": "GPS Receiver — پایش سرویس",
+  "tags": [
+    "gps",
+    "receiver"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "5s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "دسترسی Prometheus به گیرنده (۱ = موفق)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"gps-receiver\"}",
+          "refId": "A",
+          "legendFormat": "دسترسی Prometheus به گیرنده (۱ = موفق)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "آمادگی شنونده TCP (۱ = آماده)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "gps_receiver_listener_ready",
+          "refId": "A",
+          "legendFormat": "آمادگی شنونده TCP (۱ = آماده)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "اتصال‌های فعال TCP",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "gps_receiver_connections_active",
+          "refId": "A",
+          "legendFormat": "اتصال‌های فعال TCP"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "نرخ رکوردهای ذخیره‌شده در ثانیه",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(gps_receiver_records_stored_total[1m])",
+          "refId": "A",
+          "legendFormat": "نرخ رکوردهای ذخیره‌شده در ثانیه"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "رکوردهای ذخیره‌شده از شروع سرویس",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "gps_receiver_records_stored_total",
+          "refId": "A",
+          "legendFormat": "رکوردهای ذخیره‌شده از شروع سرویس",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "رکوردهای با GPS نامعتبر از شروع سرویس",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "gps_receiver_invalid_positions_total",
+          "refId": "A",
+          "legendFormat": "رکوردهای با GPS نامعتبر از شروع سرویس",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "نرخ خطا بر اساس علت",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(gps_receiver_errors_total[1m])",
+          "refId": "A",
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "زمان صدک ۹۵ پردازش و ذخیره بسته",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(gps_receiver_packet_processing_seconds_bucket[1m])))",
+          "refId": "A",
+          "legendFormat": "زمان صدک ۹۵ پردازش و ذخیره بسته"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "بایت دریافتی در ثانیه",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(gps_receiver_received_bytes_total[1m])",
+          "refId": "A",
+          "legendFormat": "بایت دریافتی در ثانیه"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "سن آخرین بسته ذخیره‌شده (بدون داده تا اولین بسته)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "(time() - gps_receiver_last_packet_stored_timestamp_seconds) and (gps_receiver_last_packet_stored_timestamp_seconds > 0)",
+          "refId": "A",
+          "legendFormat": "سن آخرین بسته ذخیره‌شده (بدون داده تا اولین بسته)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "نرخ ACK داده نوشته‌شده",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(gps_receiver_data_acks_total[1m])",
+          "refId": "A",
+          "legendFormat": "نرخ ACK داده نوشته‌شده"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "زمان فعالیت سرویس",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "gps_receiver_uptime_seconds",
+          "refId": "A",
+          "legendFormat": "زمان فعالیت سرویس",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "حافظه فرایند گیرنده",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "gps_receiver_process_working_set_bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "مصرف CPU گیرنده (۱۰۰٪ = یک هسته)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "gps-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "100 * rate(gps_receiver_process_cpu_seconds_total[1m])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "annotations": {
+    "list": []
+  }
+}

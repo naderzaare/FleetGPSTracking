@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>راهنمای پایش گیرنده GPS با Prometheus و Grafana</title>
+<style>
+body{margin:0;background:#f3f5f8;color:#182433;font:17px/1.95 Tahoma,"Segoe UI",sans-serif;direction:rtl;text-align:right}main{max-width:960px;margin:32px auto;padding:30px;background:white;border-radius:14px}h1{font-size:27px;margin-top:0}h2{font-size:22px;margin-top:34px;border-bottom:1px solid #dde4ed;padding-bottom:8px}h3{font-size:18px}p{margin:12px 0}pre{direction:ltr;unicode-bidi:isolate;text-align:left;white-space:pre;overflow:auto;background:#152236;color:#edf4ff;padding:18px;border-radius:9px;font:15px/1.75 Consolas,monospace}code,bdi{direction:ltr;unicode-bidi:isolate}code{font-family:Consolas,monospace}table{border-collapse:collapse;width:100%;margin:15px 0}th,td{border:1px solid #dce2eb;padding:9px 12px;text-align:right;vertical-align:top}th{background:#eef3f9}.note{background:#eef6ff;padding:12px 16px;border-right:4px solid #3d79bd;border-radius:6px}.flow{background:#eef8f2;padding:16px;border-radius:9px}a{color:#185ea8}li{margin:7px 0}@media(max-width:650px){main{margin:0;padding:20px;border-radius:0}body{font-size:16px}}@media print{body{background:white}main{margin:0;padding:0}pre{background:#f1f3f5;color:black;white-space:pre-wrap;overflow-wrap:anywhere}h2,pre{break-inside:avoid}}
+</style>
+</head>
+<body><main>
+<h1>پایش گیرنده GPS با Prometheus و Grafana</h1>
+<p>این راهنما مستقل از <a href="gps-receiver-fa.html">راهنمای اجرای گیرنده</a> است. فرض می‌کنیم گیرنده روی اوبونتوی VirtualBox اجرا شده و با فرم شبیه‌ساز ویندوز دریافت موفق داشته‌اید. اینجا دو کانتینر دیگر را روی همان اوبونتو اجرا می‌کنید و نتیجه را در مرورگر ویندوز می‌بینید.</p>
+
+<h2>۱. هر بخش چه کاری انجام می‌دهد؟</h2>
+<table><thead><tr><th>بخش</th><th>کار آن</th><th>کجا اجرا می‌شود؟</th></tr></thead><tbody>
+<tr><td>شبیه‌ساز</td><td>دستگاه‌های آزمایشی ایجاد می‌کند و با تعداد و فاصله انتخابی شما داده می‌فرستد.</td><td>ویندوز، همان فرم فعلی</td></tr>
+<tr><td>گیرنده GPS</td><td>داده را دریافت و ذخیره می‌کند؛ هم‌زمان شمارنده‌ها و اندازه‌گیری‌های خودش را در خروجی متریک ارائه می‌کند.</td><td>کانتینر فعلی روی اوبونتو</td></tr>
+<tr><td><bdi>Prometheus</bdi></td><td>هر ۵ ثانیه متریک‌های گیرنده را می‌خواند و تاریخچه عددی آن‌ها را ذخیره می‌کند.</td><td>کانتینر جدا روی همان اوبونتو</td></tr>
+<tr><td><bdi>Grafana</bdi></td><td>از Prometheus آمار می‌خواند و به شکل نمودار و داشبورد نشان می‌دهد.</td><td>کانتینر جدا روی اوبونتو؛ نمایش در مرورگر ویندوز</td></tr>
+</tbody></table>
+<p class="flow">مسیر ارسال آزمایشی: شبیه‌ساز ویندوز ← اتصال TCP به گیرنده ← ذخیره فایل روی اوبونتو.<br>مسیر پایش: Prometheus متریک‌های گیرنده را می‌خواند؛ Grafana داده Prometheus را نمایش می‌دهد.</p>
+<p>اینجا آمار عملکرد سرویس را می‌بینید، نه نقشه و مسیر خودرو. فایل‌های خام دریافت‌شده همچنان روی دیسک اوبونتو می‌مانند و به داشبورد منتقل نمی‌شوند.</p>
+
+<h2>۲. فایل‌های آماده چه تنظیماتی دارند؟</h2>
+<p>این فایل‌ها در مخزن آماده شده‌اند؛ برای شروع نیازی به نوشتن تنظیمات از صفر نیست:</p>
+<table><thead><tr><th>فایل</th><th>نقش</th></tr></thead><tbody>
+<tr><td><bdi>deploy/compose.yaml</bdi></td><td>تعریف کانتینر گیرنده فعلی</td></tr>
+<tr><td><bdi>deploy/compose.monitoring.yaml</bdi></td><td>افزودن دو کانتینر Prometheus و Grafana، پورت‌ها، رمز و فضای ذخیره پایدار</td></tr>
+<tr><td><bdi>deploy/monitoring/prometheus.yml</bdi></td><td>مشخص‌کردن گیرنده به‌عنوان منبع جمع‌آوری آمار</td></tr>
+<tr><td><bdi>deploy/monitoring/grafana/provisioning/</bdi></td><td>اتصال خودکار Grafana به Prometheus و بارگذاری داشبورد</td></tr>
+<tr><td><bdi>deploy/monitoring/grafana/dashboards/gps-receiver.json</bdi></td><td>داشبورد آماده با ۱۴ نمودار و شاخص</td></tr>
+</tbody></table>
+<p>بخش اصلی تنظیم Prometheus این است:</p>
+<pre><code>global:
+  scrape_interval: 5s
+  scrape_timeout: 3s
+
+scrape_configs:
+  - job_name: gps-receiver
+    metrics_path: /metrics
+    static_configs:
+      - targets: [gps-receiver:9091]</code></pre>
+<p>یعنی هر ۵ ثانیه، خروجی <bdi>/metrics</bdi> را از پورت <bdi>9091</bdi> سرویس گیرنده داخل شبکه Docker بخوان. نام <bdi>gps-receiver</bdi> در همین شبکه به کانتینر گیرنده اشاره می‌کند.</p>
+<p>Grafana هم به نشانی داخلی زیر وصل می‌شود؛ این مقدار از قبل در فایل منبع داده تنظیم شده است:</p>
+<pre><code>http://prometheus:9090</code></pre>
+<p>داخل کانتینر Grafana، نشانی localhost به خود Grafana اشاره می‌کند؛ این نشانی داخلی را با localhost ویندوز یا اوبونتو جایگزین نکنید.</p>
+
+<h2>۳. ارسال فایل‌های پایش از ویندوز به GitHub</h2>
+<p>اگر فایل‌های پایش هنوز ارسال نشده‌اند، در PowerShell اجرا کنید:</p>
+<pre><code>cd C:\Projects\FleetGPSTracking\FleetGPSTracking
+git switch codex/gps-receiver
+git status --short
+git add .gitignore deploy/compose.monitoring.yaml deploy/monitoring docs/gps-receiver-monitoring-fa.html docs/gps-receiver-monitoring-fa.md
+git diff --cached --stat
+git commit -m "Add receiver monitoring deployment and Persian guide"
+git push origin codex/gps-receiver</code></pre>
+<p>اگر این تغییرات را قبلاً commit و push کرده‌اید، ثبت دوباره لازم نیست. رمز را در Git قرار ندهید؛ فایل رمز فقط روی اوبونتو ساخته می‌شود.</p>
+
+<h2>۴. دریافت فایل‌ها روی اوبونتو</h2>
+<pre><code>cd ~/projects/FleetGPSTracking
+git status --short
+git pull --ff-only origin codex/gps-receiver</code></pre>
+<p>اگر تغییر محلی ثبت‌نشده دارید، پیش از pull آن را بررسی و حفظ کنید. از اینجا به بعد، همه دستورهای اوبونتو را در همین پوشه پروژه اجرا کنید.</p>
+
+<h2>۵. انتخاب رمز Grafana — فقط بار اول، روی اوبونتو</h2>
+<p>پوشه خصوصی رمز را بسازید:</p>
+<pre><code>mkdir -p deploy/.secrets
+chmod 0700 deploy/.secrets</code></pre>
+<p>بلوک زیر را کامل در Bash اجرا کنید. اگر فایل رمز قبلاً ساخته شده باشد، آن را تغییر نمی‌دهد. در بار اول، رمز قوی و غیرخالی وارد کنید؛ هنگام تایپ نمایش داده نمی‌شود:</p>
+<pre><code>if [ ! -f deploy/.secrets/grafana-admin-password ]; then
+  read -r -s -p 'Choose Grafana admin password: ' GRAFANA_PASSWORD
+  printf '\n'
+  if [ -n "$GRAFANA_PASSWORD" ]; then
+    printf '%s' "$GRAFANA_PASSWORD" &gt; deploy/.secrets/grafana-admin-password
+  else
+    printf 'Password is empty. Repeat this step.\n'
+  fi
+  unset GRAFANA_PASSWORD
+fi
+test -s deploy/.secrets/grafana-admin-password &amp;&amp; chmod 0644 deploy/.secrets/grafana-admin-password</code></pre>
+<p>اگر پیام خالی‌بودن رمز یا خطا دیدید، همین مرحله را دوباره انجام دهید و هنوز ادامه ندهید. فایل داخل کانتینر فقط‌خواندنی است؛ مجوز خواندن برای کاربر Grafana لازم است و پوشه والد خصوصی، دسترسی کاربران دیگر میزبان را محدود می‌کند.</p>
+<p>رمز را نگه دارید؛ موقع ورود لازم است. پس از ایجاد اولیه دیتابیس Grafana، تغییر فایل رمز، رمز حساب موجود را تغییر نمی‌دهد؛ تغییرات بعدی رمز از داخل Grafana انجام می‌شود.</p>
+
+<h2>۶. بررسی تنظیمات و دریافت ایمیج‌ها — روی اوبونتو</h2>
+<p>اول درستی ترکیب دو فایل Compose را بررسی کنید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml config --quiet</code></pre>
+<p>اگر بدون خطا برگشت، ایمیج‌های آماده ابزارهای پایش را دریافت کنید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml pull prometheus grafana</code></pre>
+<p>Prometheus و Grafana از ایمیج رسمی اجرا می‌شوند؛ نیازی به ساخت Dockerfile جدید برای آن‌ها ندارید. نسخه‌های انتخاب‌شده در فایل Compose ثابت هستند: <bdi>prom/prometheus:v3.13.5</bdi> و <bdi>grafana/grafana:13.2.4</bdi>.</p>
+<p>تنظیمات Prometheus را با ابزار خودش بررسی کنید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml run --rm --no-deps --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml</code></pre>
+<p>باید پیام موفقیت دریافت کنید؛ در صورت خطا، قبل از مرحله بعد خروجی را بررسی کنید.</p>
+
+<h2>۷. اجرای پایش — روی اوبونتو</h2>
+<p>ایمیج گیرنده از مرحله قبل ساخته شده است. این دستور دو سرویس پایش را اضافه می‌کند و پورت تشخیصی گیرنده را هم روی localhost اوبونتو در دسترس می‌گذارد. ممکن است کانتینر گیرنده بازسازی شود؛ اتصال شبیه‌ساز را تا پایان این مرحله متوقف نگه دارید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml up -d --no-build</code></pre>
+<p>وضعیت هر سه سرویس و پیام‌های پایش را ببینید:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml ps
+sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml logs --tail=50 prometheus grafana</code></pre>
+<p>هر سه سرویس باید بالا باشند. فایل دوم مکمل فایل اول است؛ آن را به‌تنهایی اجرا نکنید. پایتون یا SDK دات‌نت روی اوبونتو لازم نیست.</p>
+
+<h2>۸. مطمئن‌شدن از رسیدن متریک به Prometheus</h2>
+<p>روی اوبونتو، اگر curl نصب است:</p>
+<pre><code>curl --fail http://127.0.0.1:9091/healthz
+curl --fail http://127.0.0.1:9091/metrics</code></pre>
+<p>اولی باید <bdi>listening</bdi> برگرداند؛ دومی فهرست عددی متریک‌ها را نمایش می‌دهد. قبل از ارسال شبیه‌ساز، شمارنده‌های دریافت می‌توانند صفر باشند.</p>
+<p>پس از چند ثانیه، دسترسی Prometheus به گیرنده را بررسی کنید:</p>
+<pre><code>curl --fail --get http://127.0.0.1:9090/api/v1/query --data-urlencode 'query=up{job="gps-receiver"}'</code></pre>
+<p>در خروجی باید یک نتیجه با مقدار <bdi>"1"</bdi> ببینید. مقدار صفر یعنی Prometheus نتوانسته متریک را بخواند؛ نتیجه خالی در لحظه اول ممکن است به معنی انجام‌نشدن اولین جمع‌آوری باشد. این شاخص فقط موفقیت جمع‌آوری را نشان می‌دهد؛ دریافت دستگاه و ذخیره فایل را در تست مرحله بعد هم بررسی می‌کنیم.</p>
+
+<h2>۹. بازکردن داشبورد روی کامپیوتر ویندوز خودتان</h2>
+<p>در VirtualBox، شبکه NAT ماشین اوبونتو، بخش <bdi>Port Forwarding</bdi>، قانون زیر را اضافه کنید. قانون قبلی GPS برای پورت ۵۰۲۷ را نگه دارید:</p>
+<table><thead><tr><th>گزینه</th><th>مقدار</th></tr></thead><tbody>
+<tr><td>نام</td><td><bdi>Grafana</bdi></td></tr><tr><td>پروتکل</td><td><bdi>TCP</bdi></td></tr><tr><td>آدرس میزبان</td><td><bdi>127.0.0.1</bdi></td></tr><tr><td>پورت میزبان</td><td><bdi>3000</bdi></td></tr><tr><td>آدرس مهمان</td><td>برای DHCP خود VirtualBox خالی؛ برای آدرس ثابت، آدرس اوبونتو</td></tr><tr><td>پورت مهمان</td><td><bdi>3000</bdi></td></tr>
+</tbody></table>
+<p>در مرورگر ویندوز این نشانی را باز کنید:</p>
+<pre><code>http://127.0.0.1:3000</code></pre>
+<p><a href="http://127.0.0.1:3000">بازکردن Grafana در مرورگر</a></p>
+<p>نام کاربری <bdi>admin</bdi> و رمز، همان رمزی است که روی اوبونتو انتخاب کردید. از بخش <bdi>Dashboards</bdi> وارد پوشه <bdi>GPS Receiver</bdi> شوید و داشبورد <strong>GPS Receiver — پایش سرویس</strong> را باز کنید. منبع داده <bdi>GPS Prometheus</bdi> و داشبورد به‌صورت خودکار از فایل‌های پروژه بارگذاری می‌شوند.</p>
+<p class="note">برای دیدن خروجی روی ویندوز، فقط انتقال پورت Grafana لازم است. پورت‌های ۹۰۹۰ و ۹۰۹۱ فقط روی localhost خود اوبونتو منتشر شده‌اند؛ برای آن‌ها قانون VirtualBox نسازید. Grafana روی رابط‌های اوبونتو منتشر است تا انتقال پورت NAT کار کند؛ این تنظیم برای محیط آزمایش فعلی است و نباید بدون تنظیم دسترسی و HTTPS روی اینترنت عمومی منتشر شود.</p>
+
+<h2>۱۰. تست با همان فرم شبیه‌ساز ویندوز</h2>
+<pre><code>cd C:\Projects\FleetGPSTracking\FleetGPSTracking
+py -3 tools/GpsSimulator/gui.py</code></pre>
+<p>در فرم، آدرس <bdi>127.0.0.1</bdi>، پورت <bdi>5027</bdi>، تعداد دستگاه ۱۰ و فاصله ارسال ۲ ثانیه را بگذارید. «شروع» را بزنید و داشبورد مرورگر را کنار فرم باز نگه دارید.</p>
+<table><thead><tr><th>آزمایش شما</th><th>انتظار در داشبورد</th></tr></thead><tbody>
+<tr><td>شروع ۱۰ دستگاه، فاصله ۲ ثانیه</td><td>اتصال فعال نزدیک ۱۰؛ شمارنده رکورد ذخیره‌شده افزایشی؛ نرخ پس از حدود یک دقیقه نزدیک ۵ رکورد در ثانیه</td></tr>
+<tr><td>تعداد دستگاه را به ۵ تغییر دهید و «اعمال تغییرات» بزنید</td><td>اتصال فعال نزدیک ۵؛ نرخ به‌تدریج نزدیک ۲٫۵ رکورد در ثانیه</td></tr>
+<tr><td>فاصله ارسال را کم کنید و اعمال کنید</td><td>نرخ ورودی و رکورد ذخیره‌شده افزایش می‌یابد</td></tr>
+<tr><td>«توقف» را بزنید</td><td>اتصال‌ها به صفر می‌رسند؛ نرخ با تأخیر کاهش می‌یابد؛ سن آخرین بسته افزایش می‌یابد</td></tr>
+</tbody></table>
+<p>داشبورد هر ۵ ثانیه تازه می‌شود، ولی نرخ‌ها از پنجره یک‌دقیقه‌ای محاسبه می‌شوند؛ تغییر نرخ آنی کامل نیست. نمونه شبیه‌ساز GPS معتبر ندارد؛ افزایش شاخص GPS نامعتبر طبیعی است و به‌تنهایی خطای پروتکل نیست.</p>
+
+<h2>۱۱. معنی شاخص‌های مربوط به گیرنده</h2>
+<table><thead><tr><th>شاخص</th><th>معنی</th></tr></thead><tbody>
+<tr><td>دسترسی Prometheus</td><td>۱ یعنی متریک گیرنده را با موفقیت خوانده؛ صفر یعنی جمع‌آوری شکست خورده است.</td></tr>
+<tr><td>آمادگی TCP</td><td>۱ یعنی شنونده TCP شروع شده است؛ تضمین سلامت دیسک نیست.</td></tr>
+<tr><td>اتصال فعال</td><td>تعداد اتصال‌های باز، شامل مرحله شناسایی؛ الزاماً دستگاه یکتا نیست.</td></tr>
+<tr><td>رکورد ذخیره‌شده و نرخ آن</td><td>فقط پس از نوشتن و flush موفق بسته بالا می‌رود؛ ارسال مجدد نیز دوباره شمرده می‌شود.</td></tr>
+<tr><td>GPS نامعتبر</td><td>رکورد ذخیره شده، ولی بررسی اولیه کیفیت موقعیت را رد کرده است.</td></tr>
+<tr><td>خطا</td><td>تفکیک علت‌های پروتکل، ذخیره‌سازی، شبکه و پایان مهلت انتظار.</td></tr>
+<tr><td>زمان پردازش صدک ۹۵</td><td>مدت اعتبارسنجی و ذخیره بسته؛ انتظار دریافت از شبکه و ارسال ACK در آن نیست.</td></tr>
+<tr><td>بایت ورودی</td><td>نرخ بایت دریافتی، شامل ورودی نامعتبر.</td></tr>
+<tr><td>سن آخرین بسته</td><td>چند ثانیه از آخرین ذخیره موفق گذشته است؛ قبل از اولین بسته می‌تواند بدون داده باشد.</td></tr>
+<tr><td>نرخ ACK</td><td>پاسخ تأیید در stream نوشته شده؛ اثبات دریافت پاسخ توسط دستگاه نیست.</td></tr>
+<tr><td>مدت فعالیت، حافظه و CPU</td><td>مربوط به فرایند گیرنده است، نه کل میزبان یا خودرو.</td></tr>
+</tbody></table>
+<p>شناسه دستگاه و مختصات در متریک‌ها نیستند. با راه‌اندازی دوباره گیرنده، شمارنده‌های خودش صفر می‌شوند؛ Prometheus تاریخچه خوانده‌شده را نگه می‌دارد. متریک‌ها جای فایل خام یا دفتر حسابرسی دائمی را نمی‌گیرند.</p>
+
+<h2>۱۲. اگر خروجی را ندیدید</h2>
+<ul>
+<li>صفحه Grafana باز نمی‌شود: وضعیت کانتینر، انتقال پورت VirtualBox و آزادبودن پورت ۳۰۰۰ ویندوز را بررسی کنید.</li>
+<li>ورود انجام نمی‌شود: رمز انتخابی مرحله ۵ را وارد کنید؛ رمز پیش‌فرض این راهنما نیست.</li>
+<li>داشبورد نیست: log Grafana و وجود فایل‌های provisioning را بررسی کنید؛ منبع داده و داشبورد از فایل‌های مخزن می‌آیند.</li>
+<li>نمودار بدون داده است: ابتدا مرحله ۸ را بررسی کنید، بعد شبیه‌ساز را شروع کنید. برای نرخ‌ها حداقل دو نوبت جمع‌آوری لازم است؛ زمان پردازش و سن آخرین بسته قبل از اولین بسته ممکن است بدون داده باشند.</li>
+<li>خطای خواندن رمز: فایل رمز باید غیرخالی باشد و مجوزهای مرحله ۵ تنظیم شده باشند.</li>
+</ul>
+<p>برای بررسی پیام‌ها:</p>
+<pre><code>cd ~/projects/FleetGPSTracking
+sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml logs --tail=50 gps-receiver prometheus grafana</code></pre>
+
+<h2>۱۳. توقف، شروع مجدد و نگهداری</h2>
+<p>توقف فقط ابزارهای پایش، بدون توقف گیرنده:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml stop grafana prometheus</code></pre>
+<p>اجرای دوباره:</p>
+<pre><code>sudo docker compose -f deploy/compose.yaml -f deploy/compose.monitoring.yaml up -d --no-build</code></pre>
+<p>از این پس برای فرمان‌های مربوط به کل مجموعه، هر دو فایل Compose را بیاورید. تاریخچه Prometheus و تنظیمات Grafana در volumeهای پایدار Docker هستند؛ دستور <bdi>down -v</bdi> آن‌ها را حذف می‌کند و در این روند لازم نیست.</p>
+<p>نگهداری بلوک‌های Prometheus هفت روز یا حدود یک گیگابایت تنظیم شده است؛ فایل‌های جانبی می‌توانند فضای اضافه بگیرند. فایل‌های خام گیرنده همچنان در مسیر قبلی‌اند و این سیاست آن‌ها را پاک نمی‌کند.</p>
+<p class="note">این سند برای اجرای دستی شما آماده شده است؛ روی اوبونتو چیزی خودکار نصب یا اجرا نشده است. قالب فایل‌ها و اتصال تنظیمات بررسی شده‌اند، ولی اجرای واقعی Docker و نمایش داشبورد باید با همین مراحل روی اوبونتوی شما تأیید شود.</p>
+<p>مراجع: <a href="https://prometheus.io/docs/instrumenting/exposition_formats/">فرمت متریک Prometheus</a>، <a href="https://grafana.com/docs/grafana/latest/administration/provisioning/">بارگذاری تنظیمات Grafana از فایل</a> و <a href="https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/">اجرای Grafana با Docker</a>.</p>
+</main></body></html>

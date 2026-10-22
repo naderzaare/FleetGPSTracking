@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+  scrape_timeout: 3s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: gps-receiver
+    metrics_path: /metrics
+    static_configs:
+      - targets: [gps-receiver:9091]
