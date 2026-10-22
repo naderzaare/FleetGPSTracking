@@ -1,0 +1,5 @@
+bin/
+obj/
+captures/
+.env
+*.user
